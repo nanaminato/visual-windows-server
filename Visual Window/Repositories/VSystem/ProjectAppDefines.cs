@@ -49,8 +49,8 @@ public class ProjectAppDefines
                 AppType = AppType.NormalApp,
                 Icon = new AppIcon()
                 {
-                    IconType = IconType.MaterialIcon,
-                    Name = "docker"
+                    IconType = IconType.AssetsIcon,
+                    Name = "docker.png"
                 },
                 IsSingleton = true,
                 PreferredSize = new PreferredSize()
