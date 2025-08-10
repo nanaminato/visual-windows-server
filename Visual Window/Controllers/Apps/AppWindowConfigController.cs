@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using WebApplication1.Repositories.VSystem;
+using Visual_Window.Repositories.VSystem;
 
-namespace WebApplication1.Controllers.VSystem;
+namespace Visual_Window.VSystem;
 
 [ApiController]
 [Route("api/v1/[controller]")]

@@ -1,4 +1,4 @@
-﻿namespace WebApplication1.Models.Apps;
+﻿namespace Visual_Window.Models.Apps;
 
 public class AppWindowConfig
 {

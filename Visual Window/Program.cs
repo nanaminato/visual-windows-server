@@ -1,3 +1,6 @@
+using Visual_Window.VSystem.FileIo;
+using Visual_Window.VSystem.FileIo.impl;
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options => options.AddPolicy("CorsPolicy",
     set =>
@@ -9,6 +12,7 @@ builder.Services.AddCors(options => options.AddPolicy("CorsPolicy",
     }));
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<IFileManagerService, FileManagerService>();
 
 var app = builder.Build();
 app.UseCors("CorsPolicy");

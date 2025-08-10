@@ -1,6 +1,6 @@
-﻿using WebApplication1.Models.Apps;
+﻿using Visual_Window.Models.Apps;
 
-namespace WebApplication1.Repositories.VSystem;
+namespace Visual_Window.Repositories.VSystem;
 
 public class ProjectAppDefines
 {
