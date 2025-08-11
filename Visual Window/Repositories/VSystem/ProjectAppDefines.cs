@@ -58,6 +58,23 @@ public class ProjectAppDefines
                     Width = 800,
                     Height = 600
                 }
+            },
+            new()
+            {
+                AppId = "micro-window",
+                AppName = "micro-window",
+                AppType = AppType.NormalApp,
+                Icon = new AppIcon()
+                {
+                    IconType = IconType.AssetsIcon,
+                    Name = "micro.png"
+                },
+                IsSingleton = false,
+                PreferredSize = new PreferredSize()
+                {
+                    Width = 800,
+                    Height = 600
+                }
             }
         ];
         return appWindowConfigs;

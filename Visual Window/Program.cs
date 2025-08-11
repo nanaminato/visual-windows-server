@@ -1,3 +1,4 @@
+using Visual_Window.Controllers.Terminal.Services;
 using Visual_Window.VSystem.FileIo;
 using Visual_Window.VSystem.FileIo.impl;
 
@@ -13,8 +14,9 @@ builder.Services.AddCors(options => options.AddPolicy("CorsPolicy",
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IFileManagerService, FileManagerService>();
-
+builder.Services.AddSingleton<TerminalSessionManager>();
 var app = builder.Build();
+app.UseWebSockets();
 app.UseCors("CorsPolicy");
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -24,7 +26,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseRouting();
 
 app.UseAuthorization();
