@@ -85,6 +85,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Quick.PtyNet" Version="1.0.3" />
       <PackageReference Include="System.IO.Pipelines" Version="10.0.0-preview.6.25358.103" />
       <PackageReference Include="System.Memory" Version="4.6.3" />
       <PackageReference Include="System.Runtime.InteropServices" Version="4.3.0" />

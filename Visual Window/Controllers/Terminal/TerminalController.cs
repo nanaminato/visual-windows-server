@@ -1,4 +1,5 @@
 ﻿using System.Net.WebSockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Visual_Window.Controllers.Terminal.Services;
@@ -23,9 +24,9 @@ public class TerminalController: Controller
     }
 
     [HttpPost("")]
-    public IActionResult CreateTerminal()
+    public async Task<IActionResult> CreateTerminal()
     {
-        var session = _manager.CreateSession();
+        var session = await _manager.CreateSession();
         return Ok(new 
         {
             Id = session.Id
@@ -61,51 +62,103 @@ public class TerminalController: Controller
 
         var cancellationToken = HttpContext.RequestAborted;
 
-        var sendTask = Task.Run(async () =>
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var buffer = new char[1024];
-            while (!cancellationToken.IsCancellationRequested && !session.Process.HasExited)
+            var sendTask = Task.Run(async () =>
             {
-                int read = await session.OutputReader.ReadAsync(buffer, 0, buffer.Length);
-                if (read > 0)
+                var buffer = new byte[1024];
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    var data = new string(buffer, 0, read);
-                    var bytes = Encoding.UTF8.GetBytes(data);
-                    await webSocket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+                    int read = await session.PtyConnection.ReaderStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                    if (read > 0)
+                    {
+                        var segment = new ArraySegment<byte>(buffer, 0, read);
+                        await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
+                    }
+                    else
+                    {
+                        await Task.Delay(50, cancellationToken);
+                    }
                 }
-                else
-                {
-                    await Task.Delay(50, cancellationToken);
-                }
-            }
-        }, cancellationToken);
+            }, cancellationToken);
 
-        var receiveTask = Task.Run(async () =>
-        {
-            var buffer = new byte[1024];
-            while (!cancellationToken.IsCancellationRequested && !session.Process.HasExited)
+            var receiveTask = Task.Run(async () =>
             {
-                var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
-                if (result.MessageType == WebSocketMessageType.Close)
+                var buffer = new byte[1024];
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed", cancellationToken);
-                    break;
+                    var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed", cancellationToken);
+                        break;
+                    }
+
+                    if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        // var input = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        await session.PtyConnection.WriterStream.WriteAsync(buffer.AsMemory(0, result.Count), cancellationToken);
+                        await session.PtyConnection.WriterStream.FlushAsync(cancellationToken);
+                    }
                 }
-                else if (result.MessageType == WebSocketMessageType.Text)
-                {
-                    var input = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    await session.InputWriter.WriteAsync(input);
-                    await session.InputWriter.FlushAsync();
-                }
+            }, cancellationToken);
+
+            await Task.WhenAny(sendTask, receiveTask);
+
+            try
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
             }
-        }, cancellationToken);
-
-        await Task.WhenAny(sendTask, receiveTask);
-
-        try
+            catch { }
+        }else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
+            var sendTask = Task.Run(async () =>
+            {
+                var buffer = new char[1024];
+                while (!cancellationToken.IsCancellationRequested && !session.Process.HasExited)
+                {
+                    int read = await session.OutputReader.ReadAsync(buffer, 0, buffer.Length);
+                    if (read > 0)
+                    {
+                        var data = new string(buffer, 0, read);
+                        var bytes = Encoding.UTF8.GetBytes(data);
+                        await webSocket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+                    }
+                    else
+                    {
+                        await Task.Delay(50, cancellationToken);
+                    }
+                }
+            }, cancellationToken);
+
+            var receiveTask = Task.Run(async () =>
+            {
+                var buffer = new byte[1024];
+                while (!cancellationToken.IsCancellationRequested && !session.Process.HasExited)
+                {
+                    var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed", cancellationToken);
+                        break;
+                    }
+
+                    if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        var input = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        await session.InputWriter.WriteAsync(input);
+                        await session.InputWriter.FlushAsync();
+                    }
+                }
+            }, cancellationToken);
+
+            await Task.WhenAny(sendTask, receiveTask);
+
+            try
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
+            }
+            catch { }
         }
-        catch { }
     }
 }
