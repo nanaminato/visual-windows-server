@@ -82,11 +82,23 @@ public class TerminalSessionManager
         {
             try
             {
-                if (!session.Process.HasExited)
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    session.Process.Kill();
+                    if (!session.Process.HasExited)
+                    {
+                        session.Process.Kill();
+                    }
+                    session.Process.Dispose();
                 }
-                session.Process.Dispose();
+                else
+                {
+                    if (!session.Exited)
+                    {
+                        session.PtyConnection.Kill();
+                        session.PtyConnection.Dispose();
+                        session.Exited = true;
+                    }
+                }
             }
             catch { }
             return true;

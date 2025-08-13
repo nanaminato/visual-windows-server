@@ -67,7 +67,7 @@ public class TerminalController: Controller
             var sendTask = Task.Run(async () =>
             {
                 var buffer = new byte[1024];
-                while (!cancellationToken.IsCancellationRequested)
+                while (!cancellationToken.IsCancellationRequested&&!session.Exited)
                 {
                     int read = await session.PtyConnection.ReaderStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
                     if (read > 0)
@@ -85,7 +85,7 @@ public class TerminalController: Controller
             var receiveTask = Task.Run(async () =>
             {
                 var buffer = new byte[1024];
-                while (!cancellationToken.IsCancellationRequested)
+                while (!cancellationToken.IsCancellationRequested&&!session.Exited)
                 {
                     var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
                     if (result.MessageType == WebSocketMessageType.Close)
