@@ -60,14 +60,14 @@ public class TerminalController: Controller
 
         var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
 
-        var cancellationToken = HttpContext.RequestAborted;
+        var cancellationToken = CancellationTokenSource.CreateLinkedTokenSource(session.CancellationTokenSource.Token).Token;
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var sendTask = Task.Run(async () =>
             {
                 var buffer = new byte[1024];
-                while (!cancellationToken.IsCancellationRequested&&!session.Exited)
+                while (!session.Exited)
                 {
                     int read = await session.PtyConnection.ReaderStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
                     if (read > 0)
@@ -85,7 +85,7 @@ public class TerminalController: Controller
             var receiveTask = Task.Run(async () =>
             {
                 var buffer = new byte[1024];
-                while (!cancellationToken.IsCancellationRequested&&!session.Exited)
+                while (!session.Exited)
                 {
                     var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
                     if (result.MessageType == WebSocketMessageType.Close)
@@ -115,7 +115,7 @@ public class TerminalController: Controller
             var sendTask = Task.Run(async () =>
             {
                 var buffer = new char[1024];
-                while (!cancellationToken.IsCancellationRequested && !session.Process.HasExited)
+                while (!session.Process.HasExited)
                 {
                     int read = await session.OutputReader.ReadAsync(buffer, 0, buffer.Length);
                     if (read > 0)
@@ -134,7 +134,7 @@ public class TerminalController: Controller
             var receiveTask = Task.Run(async () =>
             {
                 var buffer = new byte[1024];
-                while (!cancellationToken.IsCancellationRequested && !session.Process.HasExited)
+                while (!session.Process.HasExited)
                 {
                     var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
                     if (result.MessageType == WebSocketMessageType.Close)

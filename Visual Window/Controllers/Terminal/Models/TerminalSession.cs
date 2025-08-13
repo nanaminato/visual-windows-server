@@ -11,9 +11,10 @@ public class TerminalSession
     public StreamReader OutputReader { get; }
     public StreamReader ErrorReader { get; }
     public IPtyConnection?  PtyConnection { get; set; }
+    public CancellationTokenSource CancellationTokenSource { get; set; }
     public bool Exited { get; set; }
 
-    public TerminalSession(string id, Process? process, IPtyConnection? ptyConnection = null)
+    public TerminalSession(string id, Process? process, IPtyConnection? ptyConnection = null, CancellationTokenSource? cancellationTokenSource = null)
     {
         Id = id;
         Process = process;
@@ -24,5 +25,6 @@ public class TerminalSession
             ErrorReader = process.StandardError;
         }
         PtyConnection = ptyConnection;
+        CancellationTokenSource = cancellationTokenSource ?? new CancellationTokenSource();
     }
 }

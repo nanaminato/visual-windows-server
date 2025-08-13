@@ -11,7 +11,7 @@ public class TerminalSessionManager
     private readonly ConcurrentDictionary<string, TerminalSession> _sessions = new();
     private static readonly int TestTimeoutMs = Debugger.IsAttached ? 300_000 : 5_000;
 
-    private CancellationToken TimeoutToken { get; } = new CancellationTokenSource(TestTimeoutMs).Token;
+    // private CancellationToken TimeoutToken { get; } = new CancellationTokenSource(TestTimeoutMs).Token;
     public async Task<TerminalSession> CreateSession()
     {
         var id = Guid.NewGuid().ToString();
@@ -28,8 +28,9 @@ public class TerminalSessionManager
                 App = "powershell.exe",
                 ForceWinPty = true,
             };
-            var terminal = await PtyProvider.SpawnAsync(options, TimeoutToken);
-            var session = new TerminalSession(id, null,terminal);
+            var token = new CancellationTokenSource();
+            var terminal = await PtyProvider.SpawnAsync(options, token.Token);
+            var session = new TerminalSession(id, null,terminal,token);
             _sessions[id] = session;
 
             // 监听进程退出，自动移除
@@ -37,6 +38,7 @@ public class TerminalSessionManager
             {
                 _sessions.TryRemove(id, out _);
                 terminal.Dispose();
+                session.CancellationTokenSource.Cancel();
             };
             return session;
         }
