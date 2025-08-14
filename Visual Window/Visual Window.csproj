@@ -81,6 +81,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Controllers\Window\Models\" />
       <Folder Include="Services\" />
     </ItemGroup>
 

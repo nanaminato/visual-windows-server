@@ -29,6 +29,7 @@ public class ProjectAppDefines
             {
                 AppId = "terminal",
                 AppName = "终端",
+                Stateful = true,
                 AppType = AppType.SystemApp,
                 Icon = new AppIcon()
                 {

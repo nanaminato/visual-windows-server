@@ -15,14 +15,6 @@ public class TerminalController: Controller
     {
         _manager = manager;
     }
-
-    [HttpGet("")]
-    public IActionResult GetTerminals()
-    {
-        var list = _manager.ListSessions();
-        return Ok(list);
-    }
-
     [HttpPost("")]
     public async Task<IActionResult> CreateTerminal()
     {
@@ -32,16 +24,11 @@ public class TerminalController: Controller
             Id = session.Id
         });
     }
-
-    [HttpDelete("{id}")]
-    public IActionResult DeleteTerminal(string id)
+    [HttpDelete("{sessionId}")]
+    public async Task<IActionResult> CloseSession(string sessionId)
     {
-        if (_manager.CloseSession(id))
-        {
-            return Ok();
-        }
-
-        return NotFound();
+        _manager.CloseSession(sessionId);
+        return Ok();
     }
     [HttpGet("{id}")]
     public async Task GetTerminalWebSocket(string id)

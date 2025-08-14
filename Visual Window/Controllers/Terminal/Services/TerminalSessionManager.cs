@@ -9,9 +9,6 @@ namespace Visual_Window.Controllers.Terminal.Services;
 public class TerminalSessionManager
 {
     private readonly ConcurrentDictionary<string, TerminalSession> _sessions = new();
-    private static readonly int TestTimeoutMs = Debugger.IsAttached ? 300_000 : 5_000;
-
-    // private CancellationToken TimeoutToken { get; } = new CancellationTokenSource(TestTimeoutMs).Token;
     public async Task<TerminalSession> CreateSession()
     {
         var id = Guid.NewGuid().ToString();
@@ -21,8 +18,8 @@ public class TerminalSessionManager
         {
             var options = new PtyOptions
             {
-                Name = "Custom terminal",
-                Cols = 50,
+                Name = "terminal",
+                Cols = 1000,
                 Rows = 25,
                 Cwd = Environment.CurrentDirectory,
                 App = "powershell.exe",
@@ -108,8 +105,13 @@ public class TerminalSessionManager
         return false;
     }
 
-    public List<string> ListSessions()
+    public ConcurrentDictionary<string, TerminalSession> GetSessions()
     {
-        return _sessions.Keys.ToList();
+        return _sessions;
     }
+
+    // public List<string> ListSessions()
+    // {
+    //     return _sessions.Keys.ToList();
+    // }
 }

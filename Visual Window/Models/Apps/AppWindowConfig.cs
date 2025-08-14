@@ -26,6 +26,12 @@ public class AppWindowConfig
         set;
     }
 
+    public bool Stateful
+    {
+        get;
+        set;
+    } = false;
+
     public PreferredSize PreferredSize
     {
         get;
