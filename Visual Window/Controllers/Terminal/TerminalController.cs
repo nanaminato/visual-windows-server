@@ -51,6 +51,12 @@ public class TerminalController: Controller
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
+            // 先发送缓存数据
+            var cachedData = session.GetBufferSnapshot();
+            if (cachedData.Length > 0)
+            {
+                await webSocket.SendAsync(cachedData, WebSocketMessageType.Text, true, cancellationToken);
+            }
             var sendTask = Task.Run(async () =>
             {
                 var buffer = new byte[1024];
@@ -59,6 +65,8 @@ public class TerminalController: Controller
                     int read = await session.PtyConnection.ReaderStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
                     if (read > 0)
                     {
+                        // 写入缓存
+                        session.AppendToBuffer(buffer, 0, read);
                         var segment = new ArraySegment<byte>(buffer, 0, read);
                         await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
                     }
@@ -99,6 +107,12 @@ public class TerminalController: Controller
             catch { }
         }else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
+            // 先发送缓存数据
+            var cachedData = session.GetBufferSnapshot();
+            if (cachedData.Length > 0)
+            {
+                await webSocket.SendAsync(cachedData, WebSocketMessageType.Text, true, cancellationToken);
+            }
             var sendTask = Task.Run(async () =>
             {
                 var buffer = new char[1024];
@@ -109,6 +123,8 @@ public class TerminalController: Controller
                     {
                         var data = new string(buffer, 0, read);
                         var bytes = Encoding.UTF8.GetBytes(data);
+                        // 写入缓存
+                        session.AppendToBuffer(bytes, 0, bytes.Length);
                         await webSocket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
                     }
                     else
