@@ -1,6 +1,6 @@
-﻿namespace Visual_Window.Models.Apps;
+﻿namespace Visual_Window.Models.Programs;
 
-public class AppWindowConfig
+public class ProgramConfig
 {
     public string AppId
     {

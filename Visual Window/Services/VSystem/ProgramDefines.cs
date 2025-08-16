@@ -1,16 +1,16 @@
-﻿using Visual_Window.Models.Apps;
+﻿using Visual_Window.Models.Programs;
 
-namespace Visual_Window.Repositories.VSystem;
+namespace Visual_Window.Services.VSystem;
 
-public class ProjectAppDefines
+public class ProgramDefines
 {
-    public static List<AppWindowConfig> GetAppWindowConfigs()
+    public static List<ProgramConfig> GetProgramConfigs()
     {
-        List<AppWindowConfig> appWindowConfigs =
+        List<ProgramConfig> programConfigs =
         [
             new()
             {
-                AppId = "file-browser",
+                AppId = "file-explorer",
                 AppName = "文件浏览器",
                 AppType = AppType.SystemApp,
                 Icon = new AppIcon()
@@ -78,6 +78,6 @@ public class ProjectAppDefines
                 }
             }
         ];
-        return appWindowConfigs;
+        return programConfigs;
     }
 }

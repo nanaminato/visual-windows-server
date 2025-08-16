@@ -82,6 +82,7 @@
 
     <ItemGroup>
       <Folder Include="Controllers\Window\Models\" />
+      <Folder Include="Repositories\" />
       <Folder Include="Services\" />
     </ItemGroup>
 
