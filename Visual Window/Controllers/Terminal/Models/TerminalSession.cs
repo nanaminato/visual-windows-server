@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics;
+using System.Net.WebSockets;
+using System.Text;
 using Pty.Net;
 
 namespace Visual_Window.Controllers.Terminal.Models;
@@ -33,7 +35,6 @@ public class TerminalSession
         PtyConnection = ptyConnection;
         CancellationTokenSource = cancellationTokenSource ?? new CancellationTokenSource();
     }
-    // 新增：写入缓存
     public void AppendToBuffer(byte[] data, int offset, int count)
     {
         lock (_bufferLock)
@@ -48,19 +49,19 @@ public class TerminalSession
             else
             {
                 // 计算剩余空间
-                int freeSpace = BufferSize - _bufferLength;
+                var freeSpace = BufferSize - _bufferLength;
                 if (count > freeSpace)
                 {
                     // 丢弃最旧的数据，腾出空间
-                    int removeCount = count - freeSpace;
+                    var removeCount = count - freeSpace;
                     _bufferStart = (_bufferStart + removeCount) % BufferSize;
                     _bufferLength -= removeCount;
                 }
 
                 // 写入数据
-                int writePos = (_bufferStart + _bufferLength) % BufferSize;
+                var writePos = (_bufferStart + _bufferLength) % BufferSize;
 
-                int firstPart = Math.Min(BufferSize - writePos, count);
+                var firstPart = Math.Min(BufferSize - writePos, count);
                 Array.Copy(data, offset, _outputBuffer, writePos, firstPart);
                 if (count > firstPart)
                 {
@@ -71,7 +72,6 @@ public class TerminalSession
         }
     }
 
-    // 新增：获取缓存数据（按顺序）
     public byte[] GetBufferSnapshot()
     {
         lock (_bufferLock)
@@ -85,11 +85,161 @@ public class TerminalSession
             }
             else
             {
-                int firstPart = BufferSize - _bufferStart;
+                var firstPart = BufferSize - _bufferStart;
                 Array.Copy(_outputBuffer, _bufferStart, snapshot, 0, firstPart);
                 Array.Copy(_outputBuffer, 0, snapshot, firstPart, _bufferLength - firstPart);
             }
             return snapshot;
         }
     }
+    
+    public async Task StartWindow(WebSocket webSocket)
+    {
+        var source = new CancellationTokenSource();
+        var cancellationToken = source.Token;
+        // 先发送缓存数据
+        var cachedData = GetBufferSnapshot();
+        if (cachedData.Length > 0)
+        {
+            await webSocket.SendAsync(cachedData, WebSocketMessageType.Text, true, cancellationToken);
+        }
+        var sendTask = Task.Run(async () =>
+        {
+            var buffer = new byte[1024];
+            while (webSocket.State == WebSocketState.Open&&cancellationToken.IsCancellationRequested == false)
+            {
+                var read = await PtyConnection.ReaderStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                if (read > 0)
+                {
+                    // 写入缓存
+                    AppendToBuffer(buffer, 0, read);
+                    var segment = new ArraySegment<byte>(buffer, 0, read);
+                    if (webSocket.State == WebSocketState.Open)
+                    {
+                        await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
+                    }
+                }
+                else
+                {
+                    await Task.Delay(50, cancellationToken);
+                }
+            }
+        }, cancellationToken);
+
+        var receiveTask = Task.Run(async () =>
+        {
+            var buffer = new byte[1024];
+            while (webSocket.State == WebSocketState.Open&&cancellationToken.IsCancellationRequested == false)
+            {
+                var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed", cancellationToken);
+                    break;
+                }
+
+                if (result.MessageType == WebSocketMessageType.Text)
+                {
+                    // var input = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    await PtyConnection.WriterStream.WriteAsync(buffer.AsMemory(0, result.Count), cancellationToken);
+                    await PtyConnection.WriterStream.FlushAsync(cancellationToken);
+                }
+            }
+        }, cancellationToken);
+
+        await Task.WhenAny(sendTask, receiveTask);
+        // Console.WriteLine("task exited");
+        try
+        {
+            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
+        }
+        catch { }
+    }
+    
+
+    public async Task StartLinux(WebSocket webSocket)
+    {
+        var source = new CancellationTokenSource();
+        var cancellationToken = source.Token;
+        var cachedData = GetBufferSnapshot();
+        if (cachedData.Length > 0)
+        {
+            await webSocket.SendAsync(cachedData, WebSocketMessageType.Text, true, cancellationToken);
+        }
+
+        var sendTask = Task.Run(async () =>
+        {
+            try
+            {
+                var buffer = new byte[1024];
+                while (webSocket.State == WebSocketState.Open&&cancellationToken.IsCancellationRequested == false)
+                {
+                    var read = await OutputReader.BaseStream.ReadAsync(buffer, cancellationToken);
+                    if (read > 0)
+                    {
+                        AppendToBuffer(buffer, 0, read);
+                        var segment = new ArraySegment<byte>(buffer, 0, read);
+                        if (webSocket.State == WebSocketState.Open)
+                        {
+                            await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
+                        }
+                    }
+                    else
+                    {
+                        await Task.Delay(50, cancellationToken);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+            Console.WriteLine("sender exited");
+        },cancellationToken);
+
+        var receiveTask = Task.Run(async () =>
+        {
+            try
+            {
+                var buffer = new byte[1024];
+                while (webSocket.State == WebSocketState.Open&&cancellationToken.IsCancellationRequested == false)
+                {
+                    var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
+                            cancellationToken);
+                        break;
+                    }
+
+                    if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        var input = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        await InputWriter.WriteAsync(input);
+                        await InputWriter.FlushAsync(cancellationToken);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        }, cancellationToken);
+
+        await Task.WhenAny(sendTask, receiveTask);
+        await source.CancelAsync();
+        try
+        {
+            if (webSocket.State == WebSocketState.Open || webSocket.State == WebSocketState.CloseReceived ||
+                webSocket.State == WebSocketState.CloseSent)
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
+            }
+        }
+        catch
+        {
+            
+        }
+    }
+    
 }
