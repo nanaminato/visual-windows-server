@@ -21,8 +21,8 @@ public class ProgramDefines
                 IsSingleton = false,
                 PreferredSize = new PreferredSize()
                 {
-                    Width = 800,
-                    Height = 600
+                    Width = 1200,
+                    Height = 800
                 }
             },
             new()
