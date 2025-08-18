@@ -27,7 +27,7 @@ public class TerminalSessionManager
             };
             var token = new CancellationTokenSource();
             var terminal = await PtyProvider.SpawnAsync(options, token.Token);
-            var session = new TerminalSession(id, null,terminal,token);
+            var session = new TerminalSession(id, null,terminal);
             _sessions[id] = session;
 
             // 监听进程退出，自动移除

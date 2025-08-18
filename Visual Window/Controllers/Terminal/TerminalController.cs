@@ -46,9 +46,7 @@ public class TerminalController: Controller
         }
 
         var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-
-        //var cancellationToken = CancellationTokenSource.CreateLinkedTokenSource(session.CancellationTokenSource.Token).Token;
-
+        
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             await session.StartWindow(webSocket);

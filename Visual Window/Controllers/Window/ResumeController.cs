@@ -23,6 +23,10 @@ public class ResumeController: Controller
             {
                 _terminalManager.CloseSession(sessionId);
             }
+            if (session.Connected)
+            {
+                continue;
+            }
             result.Add(sessionId);
         }
         return Ok(new

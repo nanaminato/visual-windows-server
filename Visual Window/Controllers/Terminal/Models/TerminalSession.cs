@@ -16,13 +16,22 @@ public class TerminalSession
     public IPtyConnection?  PtyConnection { get; set; }
     public CancellationTokenSource CancellationTokenSource { get; set; }
     public bool Exited { get; set; }
+    public bool Connected { get; set; }
     
     // 新增：1MB缓存区，线程安全
     private readonly object _bufferLock = new();
     private readonly byte[] _outputBuffer = new byte[BufferSize];
     private int _bufferStart = 0; // 环形缓冲区起始索引
     private int _bufferLength = 0; // 当前缓存长度
-    public TerminalSession(string id, Process? process, IPtyConnection? ptyConnection = null, CancellationTokenSource? cancellationTokenSource = null)
+    public override string ToString()
+    {
+        var processInfo = Process != null ? $"Process(Id={Process.Id}, Name={Process.ProcessName})" : "Process(null)";
+        var ptyInfo = PtyConnection != null ? PtyConnection.ToString() : "PtyConnection(null)";
+        return $"TerminalSession(Id={Id}, Exited={Exited}, Connected={Connected}, {processInfo}, {ptyInfo})";
+    }
+
+
+    public TerminalSession(string id, Process? process, IPtyConnection? ptyConnection = null)
     {
         Id = id;
         Process = process;
@@ -33,7 +42,6 @@ public class TerminalSession
             ErrorReader = process.StandardError;
         }
         PtyConnection = ptyConnection;
-        CancellationTokenSource = cancellationTokenSource ?? new CancellationTokenSource();
     }
     public void AppendToBuffer(byte[] data, int offset, int count)
     {
@@ -97,6 +105,7 @@ public class TerminalSession
     {
         var source = new CancellationTokenSource();
         var cancellationToken = source.Token;
+        Connected = true;
         // 先发送缓存数据
         var cachedData = GetBufferSnapshot();
         if (cachedData.Length > 0)
@@ -148,7 +157,8 @@ public class TerminalSession
         }, cancellationToken);
 
         await Task.WhenAny(sendTask, receiveTask);
-        // Console.WriteLine("task exited");
+        Connected = false;
+        Console.WriteLine("websocket disconnected");
         try
         {
             await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
@@ -162,6 +172,7 @@ public class TerminalSession
         var source = new CancellationTokenSource();
         var cancellationToken = source.Token;
         var cachedData = GetBufferSnapshot();
+        Connected = true;
         if (cachedData.Length > 0)
         {
             await webSocket.SendAsync(cachedData, WebSocketMessageType.Text, true, cancellationToken);
@@ -227,6 +238,8 @@ public class TerminalSession
         }, cancellationToken);
 
         await Task.WhenAny(sendTask, receiveTask);
+        Connected = false;
+        Console.WriteLine("websocket disconnected");
         await source.CancelAsync();
         try
         {
