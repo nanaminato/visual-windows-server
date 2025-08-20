@@ -22,6 +22,13 @@ public class FileSystemController : Controller
         return Ok(roots);
     }
 
+    [HttpPost("child-folders")]
+    public async Task<IActionResult> GetChildFolders(PathRequestBody requestBody)
+    {
+        var folder = await fileManagerService.GetChildFoldersAsync(requestBody.Path);
+        return Ok(folder);
+    }
+
     [HttpGet("special-roots")]
     public IActionResult GetSpecialRoots()
     {

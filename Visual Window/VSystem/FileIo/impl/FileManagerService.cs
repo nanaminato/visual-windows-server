@@ -1,4 +1,6 @@
-﻿namespace Visual_Window.VSystem.FileIo.impl;
+﻿using Visual_Window.Controllers.FileSystem.Models;
+
+namespace Visual_Window.VSystem.FileIo.impl;
 
 public class FileManagerService : IFileManagerService
 {
@@ -41,6 +43,34 @@ public class FileManagerService : IFileManagerService
 
         return await Task.FromResult(entries);
     }
+
+    public async Task<List<EasyFolder>> GetChildFoldersAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Path cannot be null or empty.", nameof(path));
+
+        if (!Directory.Exists(path))
+            throw new DirectoryNotFoundException($"The directory '{path}' does not exist.");
+
+        return await Task.Run(() =>
+        {
+            var directories = Directory.GetDirectories(path);
+            var result = new List<EasyFolder>();
+
+            foreach (var dir in directories)
+            {
+                var folder = new EasyFolder
+                {
+                    Name = Path.GetFileName(dir),
+                    Path = dir
+                };
+                result.Add(folder);
+            }
+
+            return result;
+        });
+    }
+
 
     public async Task CreateDirectoryAsync(string path, string directoryName)
     {

@@ -1,10 +1,13 @@
-﻿namespace Visual_Window.VSystem.FileIo;
+﻿using Visual_Window.Controllers.FileSystem.Models;
+
+namespace Visual_Window.VSystem.FileIo;
 
 public interface IFileManagerService
 {
     // 获取指定路径下的文件和文件夹列表
     Task<IEnumerable<FileSystemEntry>> GetEntriesAsync(string path);
-
+    
+    Task<List<EasyFolder>> GetChildFoldersAsync(string path);
     // 创建新文件夹
     Task CreateDirectoryAsync(string path, string directoryName);
 
