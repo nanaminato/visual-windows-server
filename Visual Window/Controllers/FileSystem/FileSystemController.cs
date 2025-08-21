@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
+using Visual_Window.Controllers.FileSystem.Models;
 using Visual_Window.Controllers.FileSystem.RequestBodys;
 using Visual_Window.VSystem.FileIo;
 using Visual_Window.VSystem.FileIo.Utils;
@@ -145,6 +146,65 @@ public class FileSystemController : Controller
     [DllImport("shell32.dll")]
     private static extern int SHGetKnownFolderPath([MarshalAs(UnmanagedType.LPStruct)] Guid rfid, uint dwFlags, IntPtr hToken, out IntPtr ppszPath);
 
+    [HttpGet("drivers")]
+    public async Task<IActionResult> GetDriverInfo()
+    {
+        // 获取所有驱动器
+        var drives = DriveInfo.GetDrives();
+
+        var list = new List<DriverInfo>();
+
+        foreach (var d in drives)
+        {
+            try
+            {
+                if (d.IsReady)
+                {
+                    var info = new DriverInfo
+                    {
+                        Name = d.Name,
+                        DriveType = d.DriveType.ToString(),
+                        Format = d.DriveFormat,
+                        TotalSize = d.TotalSize,
+                        AvailableFreeSpace = d.AvailableFreeSpace,
+                        VolumeLabel = d.VolumeLabel
+                    };
+                    list.Add(info);
+                }
+                else
+                {
+                    // 未就绪的驱动器也可以返回一些基础信息
+                    var info = new DriverInfo
+                    {
+                        Name = d.Name,
+                        DriveType = d.DriveType.ToString(),
+                        Format = null,
+                        TotalSize = 0,
+                        AvailableFreeSpace = 0,
+                        VolumeLabel = ""
+                    };
+                    list.Add(info);
+                }
+            }
+            catch (Exception ex)
+            {
+                // 捕获异常后仍然返回驱动器基本信息
+                var info = new DriverInfo
+                {
+                    Name = d.Name,
+                    DriveType = d.DriveType.ToString(),
+                    Format = null,
+                    TotalSize = 0,
+                    AvailableFreeSpace = 0,
+                    VolumeLabel = ""
+                };
+                list.Add(info);
+            }
+        }
+
+        return Ok(list);
+    }
+    
     
     [HttpPost("entries")]
     public async Task<IActionResult> GetEntries(PathRequestBody requestBody)

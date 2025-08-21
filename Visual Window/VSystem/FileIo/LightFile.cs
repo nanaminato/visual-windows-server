@@ -1,6 +1,6 @@
 ﻿namespace Visual_Window.VSystem.FileIo;
 
-public class FileSystemEntry
+public class LightFile
 {
     public string Name { get; set; }
     public string Path { get; set; }

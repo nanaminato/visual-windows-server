@@ -5,7 +5,7 @@ namespace Visual_Window.VSystem.FileIo;
 public interface IFileManagerService
 {
     // 获取指定路径下的文件和文件夹列表
-    Task<IEnumerable<FileSystemEntry>> GetEntriesAsync(string path);
+    Task<IEnumerable<LightFile>> GetEntriesAsync(string path);
     
     Task<List<EasyFolder>> GetChildFoldersAsync(string path);
     // 创建新文件夹
@@ -24,7 +24,7 @@ public interface IFileManagerService
     Task<Stream> DownloadFileAsync(string filePath);
 
     // 搜索文件或文件夹
-    Task<IEnumerable<FileSystemEntry>> SearchAsync(string rootPath, string searchPattern, bool sarchChild = false);
+    Task<IEnumerable<LightFile>> SearchAsync(string rootPath, string searchPattern, bool sarchChild = false);
 
     // 获取文件或文件夹属性
     Task<NormalFileAttributes> GetAttributesAsync(string path);

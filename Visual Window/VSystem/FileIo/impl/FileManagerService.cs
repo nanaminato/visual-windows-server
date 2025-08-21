@@ -4,19 +4,19 @@ namespace Visual_Window.VSystem.FileIo.impl;
 
 public class FileManagerService : IFileManagerService
 {
-    public async Task<IEnumerable<FileSystemEntry>> GetEntriesAsync(string path)
+    public async Task<IEnumerable<LightFile>> GetEntriesAsync(string path)
     {
         if (!Directory.Exists(path))
             throw new DirectoryNotFoundException($"目录不存在: {path}");
 
-        var entries = new List<FileSystemEntry>();
+        var entries = new List<LightFile>();
 
         // 获取文件夹
         var directories = Directory.GetDirectories(path);
         foreach (var dir in directories)
         {
             var info = new DirectoryInfo(dir);
-            entries.Add(new FileSystemEntry
+            entries.Add(new LightFile
             {
                 Name = info.Name,
                 Path = info.FullName,
@@ -31,7 +31,7 @@ public class FileManagerService : IFileManagerService
         foreach (var file in files)
         {
             var info = new FileInfo(file);
-            entries.Add(new FileSystemEntry
+            entries.Add(new LightFile
             {
                 Name = info.Name,
                 Path = info.FullName,
@@ -145,12 +145,12 @@ public class FileManagerService : IFileManagerService
     }
 
  
-    public async Task<IEnumerable<FileSystemEntry>> SearchAsync(string rootPath, string searchPattern, bool searchChild = false)
+    public async Task<IEnumerable<LightFile>> SearchAsync(string rootPath, string searchPattern, bool searchChild = false)
     {
         if (!Directory.Exists(rootPath))
             throw new DirectoryNotFoundException($"目录不存在: {rootPath}");
 
-        var results = new List<FileSystemEntry>();
+        var results = new List<LightFile>();
 
         await Task.Run(() =>
         {
@@ -160,7 +160,7 @@ public class FileManagerService : IFileManagerService
         return results;
     }
 
-    private void RecursiveSearch(string currentPath, string searchPattern, List<FileSystemEntry> results, bool searchChild = false)
+    private void RecursiveSearch(string currentPath, string searchPattern, List<LightFile> results, bool searchChild = false)
     {
         // 先处理当前目录下的文件
         try
@@ -170,7 +170,7 @@ public class FileManagerService : IFileManagerService
                 try
                 {
                     var info = new FileInfo(file);
-                    results.Add(new FileSystemEntry
+                    results.Add(new LightFile
                     {
                         Name = info.Name,
                         Path = info.FullName,
@@ -223,7 +223,7 @@ public class FileManagerService : IFileManagerService
             try
             {
                 var info = new DirectoryInfo(dir);
-                results.Add(new FileSystemEntry
+                results.Add(new LightFile
                 {
                     Name = info.Name,
                     Path = info.FullName,
