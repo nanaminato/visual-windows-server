@@ -1,4 +1,4 @@
-﻿namespace Visual_Window.VSystem.FileIo;
+﻿namespace Visual_Window.Controllers.FileSystem.Models;
 
 public class LightFile
 {

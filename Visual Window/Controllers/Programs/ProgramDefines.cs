@@ -1,6 +1,6 @@
-﻿using Visual_Window.Models.Programs;
+﻿using Visual_Window.Controllers.Programs.Models;
 
-namespace Visual_Window.Services.VSystem;
+namespace Visual_Window.Controllers.Programs;
 
 public class ProgramDefines
 {

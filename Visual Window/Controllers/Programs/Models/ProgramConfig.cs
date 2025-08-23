@@ -1,4 +1,4 @@
-﻿namespace Visual_Window.Models.Programs;
+﻿namespace Visual_Window.Controllers.Programs.Models;
 
 public class ProgramConfig
 {

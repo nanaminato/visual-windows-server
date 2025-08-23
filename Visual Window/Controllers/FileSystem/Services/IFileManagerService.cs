@@ -1,6 +1,6 @@
 ﻿using Visual_Window.Controllers.FileSystem.Models;
 
-namespace Visual_Window.VSystem.FileIo;
+namespace Visual_Window.Controllers.FileSystem.Services;
 
 public interface IFileManagerService
 {

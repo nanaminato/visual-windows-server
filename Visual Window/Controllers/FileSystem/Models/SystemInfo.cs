@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace Visual_Window.Models.VSystem;
+﻿namespace Visual_Window.Controllers.FileSystem.Models;
 
 public class SystemInfo
 {
