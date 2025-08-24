@@ -9,7 +9,7 @@ namespace Visual_Window.Controllers.VSCode;
 public class VSCodeController: Controller
 {
     [HttpPost]
-    public IActionResult GetTree(PathRequestBody pathRequestBody)
+    public IActionResult GetSubFiles(PathRequestBody pathRequestBody)
     {
         // 省略参数校验和安全检查
         var rootPath = string.IsNullOrEmpty(pathRequestBody.Path);

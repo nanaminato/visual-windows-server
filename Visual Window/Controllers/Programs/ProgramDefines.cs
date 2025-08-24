@@ -10,9 +10,9 @@ public class ProgramDefines
         [
             new()
             {
-                AppId = "file-explorer",
-                AppName = "文件浏览器",
-                AppType = AppType.SystemApp,
+                ProgramId = "file-explorer",
+                ProgramName = "文件浏览器",
+                ProgramType = AppType.SystemApp,
                 Icon = new AppIcon()
                 {
                     IconType = IconType.MaterialIcon,
@@ -27,10 +27,27 @@ public class ProgramDefines
             },
             new()
             {
-                AppId = "terminal",
-                AppName = "终端",
+                ProgramId = "code-space",
+                ProgramName = "Code Space",
+                ProgramType = AppType.SystemApp,
+                Icon = new AppIcon()
+                {
+                    IconType = IconType.AssetsIcon,
+                    Name = "code-space.svg"
+                },
+                IsSingleton = false,
+                PreferredSize = new PreferredSize()
+                {
+                    Width = 1200,
+                    Height = 800
+                }
+            },
+            new()
+            {
+                ProgramId = "terminal",
+                ProgramName = "终端",
                 Stateful = true,
-                AppType = AppType.SystemApp,
+                ProgramType = AppType.SystemApp,
                 Icon = new AppIcon()
                 {
                     IconType = IconType.MaterialIcon,
@@ -45,9 +62,9 @@ public class ProgramDefines
             },
             new()
             {
-                AppId = "docker",
-                AppName = "Docker 管理",
-                AppType = AppType.NormalApp,
+                ProgramId = "docker",
+                ProgramName = "Docker 管理",
+                ProgramType = AppType.NormalApp,
                 Icon = new AppIcon()
                 {
                     IconType = IconType.AssetsIcon,
@@ -60,23 +77,6 @@ public class ProgramDefines
                     Height = 600
                 }
             },
-            new()
-            {
-                AppId = "micro-window",
-                AppName = "micro-window",
-                AppType = AppType.NormalApp,
-                Icon = new AppIcon()
-                {
-                    IconType = IconType.AssetsIcon,
-                    Name = "micro.png"
-                },
-                IsSingleton = false,
-                PreferredSize = new PreferredSize()
-                {
-                    Width = 800,
-                    Height = 600
-                }
-            }
         ];
         return programConfigs;
     }

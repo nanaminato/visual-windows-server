@@ -2,13 +2,13 @@
 
 public class ProgramConfig
 {
-    public string AppId
+    public string ProgramId
     {
         get;
         set;
     }
 
-    public string AppName
+    public string ProgramName
     {
         get;
         set;
@@ -38,7 +38,7 @@ public class ProgramConfig
         set;
     }
 
-    public AppType AppType
+    public AppType ProgramType
     {
         get;
         set;
