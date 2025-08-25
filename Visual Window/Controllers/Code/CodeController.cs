@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Visual_Window.Controllers.Code.Models;
 using Visual_Window.Controllers.FileSystem.RequestBodys;
-using Visual_Window.Controllers.VSCode.Models;
 
-namespace Visual_Window.Controllers.VSCode;
+namespace Visual_Window.Controllers.Code;
 
 [ApiController]
 [Route("api/v1/[controller]")]
-public class VSCodeController: Controller
+public class CodeController: Controller
 {
     [HttpPost]
     public IActionResult GetSubFiles(PathRequestBody pathRequestBody)
@@ -58,8 +58,12 @@ public class VSCodeController: Controller
         var contentStr = System.Text.Encoding.UTF8.GetString(bytes);
         var lineEnding = DetectLineEnding(contentStr);
 
+        var fileName = Path.GetFileName(pathRequestBody.Path);
+
         return Ok(new
         {
+            path = pathRequestBody.Path,
+            name = fileName,
             content = Convert.ToBase64String(bytes),
             encoding,
             lineEnding

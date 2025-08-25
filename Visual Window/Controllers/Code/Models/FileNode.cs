@@ -1,4 +1,4 @@
-﻿namespace Visual_Window.Controllers.VSCode.Models;
+﻿namespace Visual_Window.Controllers.Code.Models;
 
 public class FileNode
 {
