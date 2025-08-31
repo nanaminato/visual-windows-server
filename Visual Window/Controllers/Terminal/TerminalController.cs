@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using Visual_Window.Controllers.Terminal.Models;
 using Visual_Window.Controllers.Terminal.Services;
 
 namespace Visual_Window.Controllers.Terminal;
@@ -16,9 +17,9 @@ public class TerminalController: Controller
         _manager = manager;
     }
     [HttpPost("")]
-    public async Task<IActionResult> CreateTerminal()
+    public async Task<IActionResult> CreateTerminal(TerminalCreateOptions options)
     {
-        var session = await _manager.CreateSession();
+        var session = await _manager.CreateSession(options);
         return Ok(new 
         {
             Id = session.Id

@@ -18,6 +18,7 @@ builder.Services.AddSingleton<TerminalSessionManager>();
 var app = builder.Build();
 app.UseWebSockets();
 app.UseCors("CorsPolicy");
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -27,16 +28,9 @@ if (!app.Environment.IsDevelopment())
 }
 
 // app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseRouting();
-
 app.UseAuthorization();
-
-app.MapStaticAssets();
-
-app.MapControllerRoute(
-        name: "default",
-        pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
-
-
+app.MapFallbackToFile("{*path:nonfile}", "index.html");
+app.MapControllers();
 app.Run();

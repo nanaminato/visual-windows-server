@@ -9,7 +9,7 @@ namespace Visual_Window.Controllers.Terminal.Services;
 public class TerminalSessionManager
 {
     private readonly ConcurrentDictionary<string, TerminalSession> _sessions = new();
-    public async Task<TerminalSession> CreateSession()
+    public async Task<TerminalSession> CreateSession(TerminalCreateOptions terminalCreateOptions)
     {
         var id = Guid.NewGuid().ToString();
 
@@ -21,8 +21,8 @@ public class TerminalSessionManager
                 Name = "terminal",
                 Cols = 1000,
                 Rows = 25,
-                Cwd = Environment.CurrentDirectory,
-                App = "powershell.exe",
+                Cwd = terminalCreateOptions.Cwd??Environment.CurrentDirectory,
+                App = terminalCreateOptions.App??"powershell.exe",
                 ForceWinPty = true,
             };
             var token = new CancellationTokenSource();
@@ -49,6 +49,8 @@ public class TerminalSessionManager
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                WorkingDirectory = 
+                    terminalCreateOptions.Cwd?? Environment.CurrentDirectory,
                 // 设置环境变量，确保bash正常工作
                 Environment =
                 {
