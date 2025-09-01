@@ -77,6 +77,23 @@ public class ProgramDefines
                     Height = 600
                 }
             },
+            new()
+            {
+                ProgramId = "image-viewer",
+                ProgramName = "图片查看器",
+                ProgramType = AppType.NormalApp,
+                Icon = new AppIcon()
+                {
+                    IconType = IconType.AssetsIcon,
+                    Name = "image.svg"
+                },
+                IsSingleton = false,
+                PreferredSize = new PreferredSize()
+                {
+                    Width = 800,
+                    Height = 600
+                }
+            },
         ];
         return programConfigs;
     }

@@ -114,13 +114,17 @@ public class FileSystemController : Controller
         }
     }
 
-    [HttpGet("download-file")]
+    [HttpPost("download-file")]
     public async Task<IActionResult> DownloadFile(PathRequestBody requestBody)
     {
         try
         {
             var stream = await fileManagerService.DownloadFileAsync(requestBody.Path);
-            return Ok(stream);
+            var contentType = "application/octet-stream"; // 根据实际情况设置
+            var fileName = Path.GetFileName(requestBody.Path);
+
+            // 返回一个文件流，浏览器会弹出下载窗口（前提是请求环境支持）
+            return File(stream, contentType, fileName);
         }
         catch (FileNotFoundException e)
         {
