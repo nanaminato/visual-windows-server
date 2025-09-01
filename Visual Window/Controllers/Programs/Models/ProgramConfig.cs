@@ -62,7 +62,6 @@ public class AppIcon
 
 public enum IconType
 {
-    MaterialIcon = 1,// angular material 框架icon
     LinkIcon = 2,//外部链接icon
     AssetsIcon = 3,//项目资源icon
     ServerIcon = 4,//第三方app，指定之后，后端将图片放置到指定位置

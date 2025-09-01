@@ -15,8 +15,8 @@ public class ProgramDefines
                 ProgramType = AppType.SystemApp,
                 Icon = new AppIcon()
                 {
-                    IconType = IconType.MaterialIcon,
-                    Name = "folder"
+                    IconType = IconType.AssetsIcon,
+                    Name = "explorer.svg"
                 },
                 IsSingleton = false,
                 PreferredSize = new PreferredSize()
@@ -50,8 +50,8 @@ public class ProgramDefines
                 ProgramType = AppType.SystemApp,
                 Icon = new AppIcon()
                 {
-                    IconType = IconType.MaterialIcon,
-                    Name = "terminal"
+                    IconType = IconType.AssetsIcon,
+                    Name = "terminal.svg"
                 },
                 IsSingleton = false,
                 PreferredSize = new PreferredSize()
@@ -71,23 +71,6 @@ public class ProgramDefines
                     Name = "docker.png"
                 },
                 IsSingleton = true,
-                PreferredSize = new PreferredSize()
-                {
-                    Width = 800,
-                    Height = 600
-                }
-            },
-            new()
-            {
-                ProgramId = "univer",
-                ProgramName = "univer",
-                ProgramType = AppType.NormalApp,
-                Icon = new AppIcon()
-                {
-                    IconType = IconType.AssetsIcon,
-                    Name = "univer.svg"
-                },
-                IsSingleton = false,
                 PreferredSize = new PreferredSize()
                 {
                     Width = 800,
