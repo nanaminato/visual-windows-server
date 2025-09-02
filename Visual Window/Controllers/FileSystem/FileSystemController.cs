@@ -131,6 +131,33 @@ public class FileSystemController : Controller
             return NotFound(e.Message);
         }
     }
+    // 图片查看专用
+    [HttpGet("image")]
+    public async Task<IActionResult> DownloadFile(string path)
+    {
+        try
+        {
+            var stream = await fileManagerService.DownloadFileAsync(path);
+            // 根据文件后缀名设置Content-Type
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            var contentType = ext switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".bmp" => "image/bmp",
+                ".webp" => "image/webp",
+                _ => "application/octet-stream"
+            };
+
+            // 返回文件流，不带文件名，浏览器会直接显示图片
+            return File(stream, contentType);
+        }
+        catch (FileNotFoundException e)
+        {
+            return NotFound(e.Message);
+        }
+    }
 
     [HttpPost("search-files")]
     public async Task<IActionResult> SearchFiles(SearchRequestBody requestBody)
