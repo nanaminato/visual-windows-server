@@ -47,13 +47,6 @@ public class TerminalController: Controller
         }
 
         var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-        
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            await session.StartWindow(webSocket);
-        }else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            await session.StartLinux(webSocket);
-        }
+        await session.StartTerminal(webSocket);
     }
 }

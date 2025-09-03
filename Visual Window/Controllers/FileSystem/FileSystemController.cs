@@ -114,8 +114,8 @@ public class FileSystemController : Controller
         }
     }
 
-    [HttpPost("download-file")]
-    public async Task<IActionResult> DownloadFile(PathRequestBody requestBody)
+    [HttpPost("download")]
+    public async Task<IActionResult> getFile(PathRequestBody requestBody)
     {
         try
         {
@@ -133,7 +133,7 @@ public class FileSystemController : Controller
     }
     // 图片查看专用
     [HttpGet("image")]
-    public async Task<IActionResult> DownloadFile(string path)
+    public async Task<IActionResult> getImage(string path)
     {
         try
         {

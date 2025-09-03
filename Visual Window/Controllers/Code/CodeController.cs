@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Text;
+using Microsoft.AspNetCore.Mvc;
 using Visual_Window.Controllers.Code.Models;
 using Visual_Window.Controllers.FileSystem.RequestBodys;
 
@@ -52,11 +53,6 @@ public class CodeController: Controller
             return NotFound("文件不存在");
 
         var bytes = System.IO.File.ReadAllBytes(pathRequestBody.Path);
-        
-        const string encoding = "utf-8";
-        
-        var contentStr = System.Text.Encoding.UTF8.GetString(bytes);
-        var lineEnding = DetectLineEnding(contentStr);
 
         var fileName = Path.GetFileName(pathRequestBody.Path);
 
@@ -65,8 +61,6 @@ public class CodeController: Controller
             path = pathRequestBody.Path,
             name = fileName,
             content = Convert.ToBase64String(bytes),
-            encoding,
-            lineEnding
         });
     }
 
@@ -77,11 +71,8 @@ public class CodeController: Controller
         try
         {
             var bytes = Convert.FromBase64String(request.Content);
-            var contentStr = System.Text.Encoding.UTF8.GetString(bytes);
 
-            // 替换换行符
-            var normalizedContent = NormalizeLineEndings(contentStr, request.LineEnding);
-            System.IO.File.WriteAllText(request.Path, normalizedContent, System.Text.Encoding.UTF8);
+            System.IO.File.WriteAllBytes(request.Path, bytes);
 
             return Ok(new { success = true, message = "文件保存成功" });
         }

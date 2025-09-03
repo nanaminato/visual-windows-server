@@ -1,7 +1,7 @@
 using Visual_Window.Controllers.FileSystem.Services;
 using Visual_Window.Controllers.FileSystem.Services.impl;
 using Visual_Window.Controllers.Terminal.Services;
-
+// export DOTNET_EnableWriteXorExecute=0
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options => options.AddPolicy("CorsPolicy",
     set =>

@@ -13,64 +13,37 @@ public class TerminalSessionManager
     {
         var id = Guid.NewGuid().ToString();
 
-        ProcessStartInfo psi;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var options = new PtyOptions
-            {
-                Name = "terminal",
-                Cols = 1000,
-                Rows = 25,
-                Cwd = terminalCreateOptions.Cwd??Environment.CurrentDirectory,
-                App = terminalCreateOptions.App??"powershell.exe",
-                ForceWinPty = true,
-            };
-            var token = new CancellationTokenSource();
-            var terminal = await PtyProvider.SpawnAsync(options, token.Token);
-            var session = new TerminalSession(id, null,terminal);
-            _sessions[id] = session;
+        // 根据平台设置默认的终端名称和应用程序
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var defaultApp = isWindows ? "powershell.exe" : "/bin/bash";
+        var name = isWindows ? "terminal" : "bash";
 
-            // 监听进程退出，自动移除
-            terminal.ProcessExited += (s, e) =>
-            {
-                _sessions.TryRemove(id, out _);
-                terminal.Dispose();
-                session.CancellationTokenSource.Cancel();
-            };
-            return session;
-        }
-        else
+        var options = new PtyOptions
         {
-            // Linux / Ubuntu
-            psi = new ProcessStartInfo("script", "-qfc /bin/bash /dev/null")
-            {
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = 
-                    terminalCreateOptions.Cwd?? Environment.CurrentDirectory,
-                // 设置环境变量，确保bash正常工作
-                Environment =
-                {
-                    ["TERM"] = "xterm-256color"
-                }
-            };
-            var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-            process.Start();
-            var session = new TerminalSession(id, process);
-            _sessions[id] = session;
+            Name = name,
+            Cols = 1000,
+            Rows = 25,
+            Cwd = terminalCreateOptions.Cwd ?? Environment.CurrentDirectory,
+            App = terminalCreateOptions.App ?? defaultApp,
+            ForceWinPty = true,
+        };
 
-            // 监听进程退出，自动移除
-            process.Exited += (s, e) =>
-            {
-                _sessions.TryRemove(id, out _);
-                process.Dispose();
-            };
-            return session;
-        }
+        var tokenSource = new CancellationTokenSource();
+        var terminal = await PtyProvider.SpawnAsync(options, tokenSource.Token);
+        var session = new TerminalSession(id, null, terminal);
+        _sessions[id] = session;
+
+        // 监听进程退出，自动移除
+        terminal.ProcessExited += (s, e) =>
+        {
+            _sessions.TryRemove(id, out _);
+            terminal.Dispose();
+            session.CancellationTokenSource.Cancel();
+        };
+
+        return session;
     }
+
 
     public bool TryGetSession(string id, out TerminalSession session)
     {
@@ -85,18 +58,18 @@ public class TerminalSessionManager
             {
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    if (!session.Process.HasExited)
+                    if (session.Process is { HasExited: false })
                     {
                         session.Process.Kill();
                     }
-                    session.Process.Dispose();
+                    session.Process?.Dispose();
                 }
                 else
                 {
                     if (!session.Exited)
                     {
-                        session.PtyConnection.Kill();
-                        session.PtyConnection.Dispose();
+                        session.PtyConnection?.Kill();
+                        session.PtyConnection?.Dispose();
                         session.Exited = true;
                     }
                 }
@@ -112,8 +85,4 @@ public class TerminalSessionManager
         return _sessions;
     }
 
-    // public List<string> ListSessions()
-    // {
-    //     return _sessions.Keys.ToList();
-    // }
 }
