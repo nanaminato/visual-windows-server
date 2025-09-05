@@ -5,44 +5,25 @@ using Pty.Net;
 
 namespace Visual_Window.Controllers.Terminal.Models;
 
-public class TerminalSession
+public class TerminalSession(string id, IPtyConnection ptyConnection)
 {
     private const int BufferSize = 1024 * 1024; // 1MB
-    public string Id { get; }
-    public Process? Process { get; }
-    public StreamWriter InputWriter { get; }
-    public StreamReader OutputReader { get; }
-    public StreamReader ErrorReader { get; }
-    public IPtyConnection?  PtyConnection { get; set; }
-    public CancellationTokenSource CancellationTokenSource { get; set; }
+    public string Id { get; } = id;
+    public IPtyConnection?  PtyConnection { get; set; } = ptyConnection;
     public bool Exited { get; set; }
     public bool Connected { get; set; }
     
-    // 新增：1MB缓存区，线程安全
     private readonly object _bufferLock = new();
     private readonly byte[] _outputBuffer = new byte[BufferSize];
     private int _bufferStart = 0; // 环形缓冲区起始索引
     private int _bufferLength = 0; // 当前缓存长度
     public override string ToString()
     {
-        var processInfo = Process != null ? $"Process(Id={Process.Id}, Name={Process.ProcessName})" : "Process(null)";
         var ptyInfo = PtyConnection != null ? PtyConnection.ToString() : "PtyConnection(null)";
-        return $"TerminalSession(Id={Id}, Exited={Exited}, Connected={Connected}, {processInfo}, {ptyInfo})";
+        return $"TerminalSession(Id={Id}, Exited={Exited}, Connected={Connected}, {ptyInfo})";
     }
 
 
-    public TerminalSession(string id, Process? process, IPtyConnection? ptyConnection = null)
-    {
-        Id = id;
-        Process = process;
-        if (process != null)
-        {
-            InputWriter = process.StandardInput;
-            OutputReader = process.StandardOutput;
-            ErrorReader = process.StandardError;
-        }
-        PtyConnection = ptyConnection;
-    }
     public void AppendToBuffer(byte[] data, int offset, int count)
     {
         lock (_bufferLock)
@@ -80,7 +61,7 @@ public class TerminalSession
         }
     }
 
-    public byte[] GetBufferSnapshot()
+    private byte[] GetBufferSnapshot()
     {
         lock (_bufferLock)
         {
@@ -117,7 +98,7 @@ public class TerminalSession
             var buffer = new byte[1024];
             while (webSocket.State == WebSocketState.Open&&cancellationToken.IsCancellationRequested == false)
             {
-                var read = await PtyConnection.ReaderStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                var read = await PtyConnection!.ReaderStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
                 if (read > 0)
                 {
                     // 写入缓存
@@ -150,7 +131,7 @@ public class TerminalSession
                 if (result.MessageType == WebSocketMessageType.Text)
                 {
                     // var input = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    await PtyConnection.WriterStream.WriteAsync(buffer.AsMemory(0, result.Count), cancellationToken);
+                    await PtyConnection!.WriterStream.WriteAsync(buffer.AsMemory(0, result.Count), cancellationToken);
                     await PtyConnection.WriterStream.FlushAsync(cancellationToken);
                 }
             }

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Pty.Net;
 using Visual_Window.Controllers.Terminal.Models;
@@ -30,7 +29,7 @@ public class TerminalSessionManager
 
         var tokenSource = new CancellationTokenSource();
         var terminal = await PtyProvider.SpawnAsync(options, tokenSource.Token);
-        var session = new TerminalSession(id, null, terminal);
+        var session = new TerminalSession(id,  terminal);
         _sessions[id] = session;
 
         // 监听进程退出，自动移除
@@ -38,7 +37,6 @@ public class TerminalSessionManager
         {
             _sessions.TryRemove(id, out _);
             terminal.Dispose();
-            session.CancellationTokenSource.Cancel();
         };
 
         return session;
@@ -56,22 +54,11 @@ public class TerminalSessionManager
         {
             try
             {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                if (!session.Exited)
                 {
-                    if (session.Process is { HasExited: false })
-                    {
-                        session.Process.Kill();
-                    }
-                    session.Process?.Dispose();
-                }
-                else
-                {
-                    if (!session.Exited)
-                    {
-                        session.PtyConnection?.Kill();
-                        session.PtyConnection?.Dispose();
-                        session.Exited = true;
-                    }
+                    session.PtyConnection?.Kill();
+                    session.PtyConnection?.Dispose();
+                    session.Exited = true;
                 }
             }
             catch { }
