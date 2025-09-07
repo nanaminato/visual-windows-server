@@ -87,64 +87,123 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
         var source = new CancellationTokenSource();
         var cancellationToken = source.Token;
         Connected = true;
-        // 先发送缓存数据
-        var cachedData = GetBufferSnapshot();
-        if (cachedData.Length > 0)
-        {
-            await webSocket.SendAsync(cachedData, WebSocketMessageType.Text, true, cancellationToken);
-        }
-        var sendTask = Task.Run(async () =>
-        {
-            var buffer = new byte[1024];
-            while (webSocket.State == WebSocketState.Open&&cancellationToken.IsCancellationRequested == false)
-            {
-                var read = await PtyConnection!.ReaderStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
-                if (read > 0)
-                {
-                    // 写入缓存
-                    AppendToBuffer(buffer, 0, read);
-                    var segment = new ArraySegment<byte>(buffer, 0, read);
-                    if (webSocket.State == WebSocketState.Open)
-                    {
-                        await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
-                    }
-                }
-                else
-                {
-                    await Task.Delay(50, cancellationToken);
-                }
-            }
-        }, cancellationToken);
-
-        var receiveTask = Task.Run(async () =>
-        {
-            var buffer = new byte[1024];
-            while (webSocket.State == WebSocketState.Open&&cancellationToken.IsCancellationRequested == false)
-            {
-                var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed", cancellationToken);
-                    break;
-                }
-
-                if (result.MessageType == WebSocketMessageType.Text)
-                {
-                    // var input = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    await PtyConnection!.WriterStream.WriteAsync(buffer.AsMemory(0, result.Count), cancellationToken);
-                    await PtyConnection.WriterStream.FlushAsync(cancellationToken);
-                }
-            }
-        }, cancellationToken);
-
-        await Task.WhenAny(sendTask, receiveTask);
-        Connected = false;
-        Console.WriteLine("websocket disconnected");
         try
         {
-            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
+            // 先发送缓存数据
+            var cachedData = GetBufferSnapshot();
+            if (cachedData.Length > 0)
+            {
+                try
+                {
+                    await webSocket.SendAsync(cachedData, WebSocketMessageType.Text, true, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error sending cached data: {ex}");
+                    await source.CancelAsync();
+                }
+            }
+
+            var sendTask = Task.Run(async () =>
+            {
+                try
+                {
+                    var buffer = new byte[1024];
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        var read = await PtyConnection!.ReaderStream.ReadAsync(buffer, 0, buffer.Length,
+                            cancellationToken);
+                        if (read > 0)
+                        {
+                            // 写入缓存
+                            AppendToBuffer(buffer, 0, read);
+                            var segment = new ArraySegment<byte>(buffer, 0, read);
+                            if (webSocket.State == WebSocketState.Open)
+                            {
+                                await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
+                            }else
+                            {
+                                await source.CancelAsync();
+                            }
+                        }
+                        else
+                        {
+                            await source.CancelAsync();
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("send cancelled");
+                    /* 正常取消 */
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"SendTask exception: {ex}");
+                    // 这里可以考虑取消整个连接
+                    await source.CancelAsync();
+                }
+                Console.WriteLine("SendTask finished");
+            }, cancellationToken);
+
+            var receiveTask = Task.Run(async () =>
+            {
+                try
+                {
+                    var buffer = new byte[1024];
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            await source.CancelAsync();
+                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
+                                CancellationToken.None);
+                            break;
+                        }
+
+                        if (result.MessageType == WebSocketMessageType.Text)
+                        {
+                            await PtyConnection!.WriterStream.WriteAsync(buffer.AsMemory(0, result.Count),
+                                cancellationToken);
+                            await PtyConnection.WriterStream.FlushAsync(cancellationToken);
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Receive canceled");
+                    /* 正常取消 */
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Receive exception: {ex}");
+                    // 这里可以考虑取消整个连接
+                    await source.CancelAsync();
+                }
+                Console.WriteLine("Receive finished");
+            }, cancellationToken);
+
+            await Task.WhenAll(sendTask, receiveTask);
+            Console.WriteLine("all finished");
         }
-        catch { }
+        finally
+        {
+            Connected = false;
+            Console.WriteLine("websocket disconnected");
+            try
+            {
+                if (webSocket.State == WebSocketState.Open || webSocket.State == WebSocketState.CloseReceived)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"Error closing websocket: {ex}");
+            }
+        }
+        
     }
     
 }
