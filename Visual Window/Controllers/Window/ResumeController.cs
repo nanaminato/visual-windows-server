@@ -21,10 +21,6 @@ public class ResumeController: Controller
         var result = new List<string>();
         foreach (var (sessionId,session) in _terminalManager.GetSessions())
         {
-            if (session.Exited)
-            {
-                _terminalManager.CloseSession(sessionId);
-            }
             if (session.Connected)
             {
                 continue;

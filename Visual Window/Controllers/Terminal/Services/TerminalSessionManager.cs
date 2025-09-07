@@ -33,7 +33,7 @@ public class TerminalSessionManager
             var terminal = await PtyProvider.SpawnAsync(options, tokenSource.Token);
             var session = new TerminalSession(id, terminal);
             _sessions[id] = session;
-
+            
             // 监听进程退出，自动移除
             terminal.ProcessExited += (s, e) =>
             {
@@ -69,15 +69,11 @@ public class TerminalSessionManager
         {
             try
             {
-                if (!session.Exited)
-                {
-                    Console.WriteLine("Ipty connection open-> try close");
-                    session.PtyConnection?.Kill();
-                    Console.WriteLine("Ipty connection kill");
-                    session.PtyConnection?.Dispose();
-                    Console.WriteLine("Ipty connection dispose");
-                    session.Exited = true;
-                }
+                Console.WriteLine("Ipty connection open-> try close");
+                session.PtyConnection?.Dispose();
+                Console.WriteLine("Ipty connection dispose");
+                session.PtyConnection?.Kill();
+                Console.WriteLine("Ipty connection kill");
             }
             catch(Exception ex)
             {

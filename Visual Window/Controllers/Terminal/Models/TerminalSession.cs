@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Net.WebSockets;
-using System.Text;
+﻿using System.Net.WebSockets;
 using Pty.Net;
 
 namespace Visual_Window.Controllers.Terminal.Models;
@@ -10,7 +8,6 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
     private const int BufferSize = 1024 * 1024; // 1MB
     public string Id { get; } = id;
     public IPtyConnection?  PtyConnection { get; set; } = ptyConnection;
-    public bool Exited { get; set; }
     public bool Connected { get; set; }
     
     private readonly object _bufferLock = new();
@@ -20,11 +17,11 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
     public override string ToString()
     {
         var ptyInfo = PtyConnection != null ? PtyConnection.ToString() : "PtyConnection(null)";
-        return $"TerminalSession(Id={Id}, Exited={Exited}, Connected={Connected}, {ptyInfo})";
+        return $"TerminalSession(Id={Id}, Connected={Connected}, {ptyInfo})";
     }
 
 
-    public void AppendToBuffer(byte[] data, int offset, int count)
+    private void AppendToBuffer(byte[] data, int offset, int count)
     {
         lock (_bufferLock)
         {
@@ -120,8 +117,10 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
                             var segment = new ArraySegment<byte>(buffer, 0, read);
                             if (webSocket.State == WebSocketState.Open)
                             {
-                                await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
-                            }else
+                                await webSocket.SendAsync(segment, WebSocketMessageType.Text, true,
+                                    cancellationToken);
+                            }
+                            else
                             {
                                 await source.CancelAsync();
                             }
@@ -131,6 +130,11 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
                             await source.CancelAsync();
                         }
                     }
+                }
+                catch (ObjectDisposedException)
+                {
+                    Console.WriteLine("send cancelled");
+                    /* 正常取消 */  
                 }
                 catch (OperationCanceledException)
                 {
@@ -164,6 +168,7 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
                             await source.CancelAsync();
                             await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
                                 CancellationToken.None);
+                            Console.WriteLine("Client closed");
                             break;
                         }
 
@@ -192,6 +197,7 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
                     await source.CancelAsync();
                 }
                 Console.WriteLine("Receive finished");
+                Console.WriteLine(webSocket.CloseStatusDescription);
             }, cancellationToken);
 
             await Task.WhenAll(sendTask, receiveTask);
