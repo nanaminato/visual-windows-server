@@ -1,13 +1,12 @@
-﻿using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Visual_Window.Controllers.FileSystem.Models;
 using Visual_Window.Controllers.FileSystem.RequestBodys;
 using Visual_Window.Controllers.FileSystem.Services;
 
 namespace Visual_Window.Controllers.FileSystem;
 
 [ApiController]
+[Authorize(Policy = "admin")]
 [Route("api/v1/[controller]")]
 public class FileSystemController : Controller
 {
@@ -43,9 +42,6 @@ public class FileSystemController : Controller
         var list = DirectoriesProvider.GetDrives();
         return Ok(list);
     }
-
-    
-    
     
     [HttpPost("entries")]
     public async Task<IActionResult> GetEntries(PathRequestBody requestBody)
@@ -125,33 +121,6 @@ public class FileSystemController : Controller
 
             // 返回一个文件流，浏览器会弹出下载窗口（前提是请求环境支持）
             return File(stream, contentType, fileName);
-        }
-        catch (FileNotFoundException e)
-        {
-            return NotFound(e.Message);
-        }
-    }
-    // 图片查看专用
-    [HttpGet("image")]
-    public async Task<IActionResult> getImage(string path)
-    {
-        try
-        {
-            var stream = await fileManagerService.DownloadFileAsync(path);
-            // 根据文件后缀名设置Content-Type
-            var ext = Path.GetExtension(path).ToLowerInvariant();
-            var contentType = ext switch
-            {
-                ".jpg" or ".jpeg" => "image/jpeg",
-                ".png" => "image/png",
-                ".gif" => "image/gif",
-                ".bmp" => "image/bmp",
-                ".webp" => "image/webp",
-                _ => "application/octet-stream"
-            };
-
-            // 返回文件流，不带文件名，浏览器会直接显示图片
-            return File(stream, contentType);
         }
         catch (FileNotFoundException e)
         {

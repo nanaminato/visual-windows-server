@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Visual_Window.Controllers.Code.Models;
 using Visual_Window.Controllers.FileSystem.RequestBodys;
@@ -6,6 +7,7 @@ using Visual_Window.Controllers.FileSystem.RequestBodys;
 namespace Visual_Window.Controllers.Code;
 
 [ApiController]
+[Authorize(Policy = "admin")]
 [Route("api/v1/[controller]")]
 public class CodeController: Controller
 {

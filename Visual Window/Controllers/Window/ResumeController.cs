@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Visual_Window.Controllers.Terminal.Services;
 
 namespace Visual_Window.Controllers.Window;
 [ApiController]
 [Route("api/v1/[controller]")]
+[Authorize(Policy = "admin")]
 public class ResumeController: Controller
 {
     private TerminalSessionManager _terminalManager;

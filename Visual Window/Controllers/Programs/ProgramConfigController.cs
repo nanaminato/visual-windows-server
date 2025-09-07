@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Visual_Window.Controllers.Programs;
 
@@ -6,10 +7,6 @@ namespace Visual_Window.Controllers.Programs;
 [Route("api/v1/[controller]")]
 public class ProgramConfigController: Controller
 {
-    public ProgramConfigController()
-    {
-        
-    }
 
     [HttpGet("installed-apps")]
     public IActionResult GetAllInstalledApps()
