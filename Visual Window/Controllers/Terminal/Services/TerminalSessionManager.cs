@@ -10,36 +10,51 @@ public class TerminalSessionManager
     private readonly ConcurrentDictionary<string, TerminalSession> _sessions = new();
     public async Task<TerminalSession> CreateSession(TerminalCreateOptions terminalCreateOptions)
     {
-        var id = Guid.NewGuid().ToString();
-
-        // 根据平台设置默认的终端名称和应用程序
-        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        var defaultApp = isWindows ? "powershell.exe" : "/bin/bash";
-        var name = isWindows ? "terminal" : "bash";
-
-        var options = new PtyOptions
+        try
         {
-            Name = name,
-            Cols = 1000,
-            Rows = 25,
-            Cwd = terminalCreateOptions.Cwd ?? Environment.CurrentDirectory,
-            App = terminalCreateOptions.App ?? defaultApp,
-            ForceWinPty = true,
-        };
+            var id = Guid.NewGuid().ToString();
 
-        var tokenSource = new CancellationTokenSource();
-        var terminal = await PtyProvider.SpawnAsync(options, tokenSource.Token);
-        var session = new TerminalSession(id,  terminal);
-        _sessions[id] = session;
+            // 根据平台设置默认的终端名称和应用程序
+            var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+            var defaultApp = isWindows ? "powershell.exe" : "/bin/bash";
+            var name = isWindows ? "terminal" : "bash";
 
-        // 监听进程退出，自动移除
-        terminal.ProcessExited += (s, e) =>
+            var options = new PtyOptions
+            {
+                Name = name,
+                Cols = 80,
+                Rows = 25,
+                Cwd = terminalCreateOptions.Cwd ?? Environment.CurrentDirectory,
+                App = terminalCreateOptions.App ?? defaultApp,
+                ForceWinPty = true,
+            };
+
+            var tokenSource = new CancellationTokenSource();
+            var terminal = await PtyProvider.SpawnAsync(options, tokenSource.Token);
+            var session = new TerminalSession(id, terminal);
+            _sessions[id] = session;
+
+            // 监听进程退出，自动移除
+            terminal.ProcessExited += (s, e) =>
+            {
+                try
+                {
+                    _sessions.TryRemove(id, out _);
+                    Console.WriteLine("Ipty connection exited and removed from session");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            };
+
+            return session;
+        }
+        catch (Exception ex)
         {
-            _sessions.TryRemove(id, out _);
-            terminal.Dispose();
-        };
-
-        return session;
+            Console.WriteLine(ex.Message);
+            throw;
+        }
     }
 
 
@@ -56,12 +71,18 @@ public class TerminalSessionManager
             {
                 if (!session.Exited)
                 {
+                    Console.WriteLine("Ipty connection open-> try close");
                     session.PtyConnection?.Kill();
+                    Console.WriteLine("Ipty connection kill");
                     session.PtyConnection?.Dispose();
+                    Console.WriteLine("Ipty connection dispose");
                     session.Exited = true;
                 }
             }
-            catch { }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
             return true;
         }
         return false;

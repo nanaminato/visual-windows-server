@@ -137,6 +137,11 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
                     Console.WriteLine("send cancelled");
                     /* 正常取消 */
                 }
+                catch (WebSocketException)
+                {
+                    Console.WriteLine("Receive canceled");
+                    /* 正常取消 */
+                }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"SendTask exception: {ex}");
@@ -171,6 +176,11 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
                     }
                 }
                 catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Receive canceled");
+                    /* 正常取消 */
+                }
+                catch (WebSocketException)
                 {
                     Console.WriteLine("Receive canceled");
                     /* 正常取消 */
