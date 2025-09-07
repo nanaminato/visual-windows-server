@@ -1,4 +1,5 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
+using System.Runtime.InteropServices;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -86,7 +87,14 @@ public class TerminalController: Controller
         var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
     
         // 5. 启动终端会话
-        await session.StartTerminal(webSocket);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            await session.StartTerminal(webSocket);
+        }
+        else
+        {
+            await session.StartLinux(webSocket);
+        }
     }
 
     private ClaimsPrincipal? ValidateToken(string token)

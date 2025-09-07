@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Pty.Net;
 using Visual_Window.Controllers.Terminal.Models;
@@ -10,50 +11,82 @@ public class TerminalSessionManager
     private readonly ConcurrentDictionary<string, TerminalSession> _sessions = new();
     public async Task<TerminalSession> CreateSession(TerminalCreateOptions terminalCreateOptions)
     {
-        try
+        var id = Guid.NewGuid().ToString();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var id = Guid.NewGuid().ToString();
-
-            // 根据平台设置默认的终端名称和应用程序
-            var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-            var defaultApp = isWindows ? "powershell.exe" : "/bin/bash";
-            var name = isWindows ? "terminal" : "bash";
-
-            var options = new PtyOptions
-            {
-                Name = name,
-                Cols = 80,
-                Rows = 25,
-                Cwd = terminalCreateOptions.Cwd ?? Environment.CurrentDirectory,
-                App = terminalCreateOptions.App ?? defaultApp,
-                ForceWinPty = true,
-            };
-
-            var tokenSource = new CancellationTokenSource();
-            var terminal = await PtyProvider.SpawnAsync(options, tokenSource.Token);
-            var session = new TerminalSession(id, terminal);
-            _sessions[id] = session;
             
-            // 监听进程退出，自动移除
-            terminal.ProcessExited += (s, e) =>
+            try{
+                // 根据平台设置默认的终端名称和应用程序
+                var defaultApp = "powershell.exe";
+                var name = "terminal";
+
+                var options = new PtyOptions
+                {
+                    Name = name,
+                    Cols = 80,
+                    Rows = 25,
+                    Cwd = terminalCreateOptions.Cwd ?? Environment.CurrentDirectory,
+                    App = terminalCreateOptions.App ?? defaultApp,
+                    ForceWinPty = true,
+                };
+
+                var tokenSource = new CancellationTokenSource();
+                var terminal = await PtyProvider.SpawnAsync(options, tokenSource.Token);
+                var session = new TerminalSession(id, terminal);
+                _sessions[id] = session;
+            
+                // 监听进程退出，自动移除
+                terminal.ProcessExited += (s, e) =>
+                {
+                    try
+                    {
+                        _sessions.TryRemove(id, out _);
+                        Console.WriteLine("Ipty connection exited and removed from session");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
+                };
+
+                return session;
+            }
+            catch (Exception ex)
             {
-                try
+                Console.WriteLine(ex.Message);
+                throw;
+            }
+        }
+        else
+        {
+            ProcessStartInfo psi;
+            // Linux / Ubuntu
+            psi = new ProcessStartInfo("script", $"-qfc {terminalCreateOptions.App??"/bin/bash"} /dev/null")
+            {
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                // 设置环境变量，确保bash正常工作
+                WorkingDirectory = terminalCreateOptions.Cwd ?? Environment.CurrentDirectory,
+                Environment =
                 {
-                    _sessions.TryRemove(id, out _);
-                    Console.WriteLine("Ipty connection exited and removed from session");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
+                    ["TERM"] = "xterm-256color"
                 }
             };
+            var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+            process.Start();
+            var session = new TerminalSession(id,null, process);
+            _sessions[id] = session;
 
+            // 监听进程退出，自动移除
+            process.Exited += (s, e) =>
+            {
+                _sessions.TryRemove(id, out _);
+                process.Dispose();
+            };
             return session;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-            throw;
         }
     }
 
@@ -69,11 +102,19 @@ public class TerminalSessionManager
         {
             try
             {
-                Console.WriteLine("Ipty connection open-> try close");
-                session.PtyConnection?.Dispose();
-                Console.WriteLine("Ipty connection dispose");
-                session.PtyConnection?.Kill();
-                Console.WriteLine("Ipty connection kill");
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    Console.WriteLine("Ipty connection open-> try close");
+                    session.PtyConnection?.Dispose();
+                    Console.WriteLine("Ipty connection dispose");
+                    session.PtyConnection?.Kill();
+                    Console.WriteLine("Ipty connection kill");
+                }
+                else
+                {
+                    session.Process?.Kill();
+                }
+                
             }
             catch(Exception ex)
             {

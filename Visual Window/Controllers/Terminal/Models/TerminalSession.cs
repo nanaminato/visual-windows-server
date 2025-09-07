@@ -1,14 +1,33 @@
-﻿using System.Net.WebSockets;
+﻿using System.Diagnostics;
+using System.Net.WebSockets;
+using System.Text;
 using Pty.Net;
 
 namespace Visual_Window.Controllers.Terminal.Models;
 
-public class TerminalSession(string id, IPtyConnection ptyConnection)
+public class TerminalSession
 {
     private const int BufferSize = 1024 * 1024; // 1MB
-    public string Id { get; } = id;
-    public IPtyConnection?  PtyConnection { get; set; } = ptyConnection;
+    public string Id { get; }
+    public IPtyConnection?  PtyConnection { get; set; }
     public bool Connected { get; set; }
+    public Process? Process { get; }
+    public StreamWriter InputWriter { get; }
+    public StreamReader OutputReader { get; }
+    public StreamReader ErrorReader { get; }
+    
+    public TerminalSession(string id,IPtyConnection? ptyConnection = null, Process? process=null)
+    {
+        Id = id;
+        Process = process;
+        if (process != null)
+        {
+            InputWriter = process.StandardInput;
+            OutputReader = process.StandardOutput;
+            ErrorReader = process.StandardError;
+        }
+        PtyConnection = ptyConnection;
+    }
     
     private readonly object _bufferLock = new();
     private readonly byte[] _outputBuffer = new byte[BufferSize];
@@ -221,5 +240,121 @@ public class TerminalSession(string id, IPtyConnection ptyConnection)
         }
         
     }
+    public async Task StartLinux(WebSocket webSocket)
+    {
+        try
+        {
+            var source = new CancellationTokenSource();
+            var cancellationToken = source.Token;
+            var cachedData = GetBufferSnapshot();
+            Connected = true;
+            if (cachedData.Length > 0)
+            {
+                await webSocket.SendAsync(cachedData, WebSocketMessageType.Text, true, cancellationToken);
+            }
+
+            var sendTask = Task.Run(async () =>
+            {
+                try
+                {
+                    var buffer = new byte[1024];
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        var read = await OutputReader.BaseStream.ReadAsync(buffer, cancellationToken);
+                        if (read > 0)
+                        {
+                            AppendToBuffer(buffer, 0, read);
+                            var segment = new ArraySegment<byte>(buffer, 0, read);
+                            if (webSocket.State == WebSocketState.Open)
+                            {
+                                await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
+                            }
+                        }
+                        else
+                        {
+                            await Task.Delay(50, cancellationToken);
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Receive canceled");
+                    /* 正常取消 */
+                }
+                catch (WebSocketException)
+                {
+                    Console.WriteLine("Receive canceled");
+                    /* 正常取消 */
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+
+                Console.WriteLine("sender exited");
+            }, cancellationToken);
+
+            var receiveTask = Task.Run(async () =>
+            {
+                try
+                {
+                    var buffer = new byte[1024];
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            await source.CancelAsync();
+                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
+                                CancellationToken.None);
+                            Console.WriteLine("Client closed");
+                            break;
+                        }
+
+                        if (result.MessageType == WebSocketMessageType.Text)
+                        {
+                            var input = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                            await InputWriter.WriteAsync(input);
+                            await InputWriter.FlushAsync(cancellationToken);
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Receive canceled");
+                    /* 正常取消 */
+                }
+                catch (WebSocketException)
+                {
+                    Console.WriteLine("Receive canceled");
+                    /* 正常取消 */
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            }, cancellationToken);
+            await Task.WhenAll(sendTask, receiveTask);
+            Console.WriteLine("all finished");
+        }
+        finally
+        {
+            Connected = false;
+            Console.WriteLine("websocket disconnected");
+            try
+            {
+                if (webSocket.State == WebSocketState.Open || webSocket.State == WebSocketState.CloseReceived)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                }
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"Error closing websocket: {ex}");
+            }
+        }
+        
+    }
+    
     
 }
