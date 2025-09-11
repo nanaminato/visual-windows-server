@@ -83,7 +83,7 @@ public class TerminalSessionManager
             // 监听进程退出，自动移除
             process.Exited += (s, e) =>
             {
-                _sessions.TryRemove(id, out _);
+                CloseSession(id);
                 process.Dispose();
             };
             return session;

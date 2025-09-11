@@ -10,7 +10,14 @@ public class TerminalSession
     private const int BufferSize = 1024 * 1024; // 1MB
     public string Id { get; }
     public IPtyConnection?  PtyConnection { get; set; }
-    public bool Connected { get; set; }
+    private int _connected;
+
+    public bool Connected
+    {
+        get => Interlocked.CompareExchange(ref _connected, 0, 0) == 1;
+        set => Interlocked.Exchange(ref _connected, value ? 1 : 0);
+    }
+
     public Process? Process { get; }
     public StreamWriter InputWriter { get; }
     public StreamReader OutputReader { get; }
@@ -169,8 +176,9 @@ public class TerminalSession
                 {
                     Console.WriteLine($"SendTask exception: {ex}");
                     // 这里可以考虑取消整个连接
-                    await source.CancelAsync();
+                    
                 }
+                await source.CancelAsync();
                 Console.WriteLine("SendTask finished");
             }, cancellationToken);
 
@@ -213,8 +221,8 @@ public class TerminalSession
                 {
                     Console.WriteLine($"Receive exception: {ex}");
                     // 这里可以考虑取消整个连接
-                    await source.CancelAsync();
                 }
+                await source.CancelAsync();
                 Console.WriteLine("Receive finished");
                 Console.WriteLine(webSocket.CloseStatusDescription);
             }, cancellationToken);
@@ -290,7 +298,7 @@ public class TerminalSession
                 {
                     Console.WriteLine(e);
                 }
-
+                await source.CancelAsync();
                 Console.WriteLine("sender exited");
             }, cancellationToken);
 
@@ -334,6 +342,7 @@ public class TerminalSession
                     Console.WriteLine(e);
                 }
             }, cancellationToken);
+            await source.CancelAsync();
             await Task.WhenAll(sendTask, receiveTask);
             Console.WriteLine("all finished");
         }
