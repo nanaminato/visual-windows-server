@@ -341,8 +341,8 @@ public class TerminalSession
                 {
                     Console.WriteLine(e);
                 }
+                await source.CancelAsync();
             }, cancellationToken);
-            await source.CancelAsync();
             await Task.WhenAll(sendTask, receiveTask);
             Console.WriteLine("all finished");
         }

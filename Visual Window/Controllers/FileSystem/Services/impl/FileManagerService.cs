@@ -6,70 +6,93 @@ public class FileManagerService : IFileManagerService
 {
     public async Task<IEnumerable<LightFile>> GetEntriesAsync(string path)
     {
-        if (!Directory.Exists(path))
-            throw new DirectoryNotFoundException($"目录不存在: {path}");
-
-        var entries = new List<LightFile>();
-
-        // 获取文件夹
-        var directories = Directory.GetDirectories(path);
-        foreach (var dir in directories)
+        try
         {
-            var info = new DirectoryInfo(dir);
-            entries.Add(new LightFile
-            {
-                Name = info.Name,
-                Path = info.FullName,
-                IsDirectory = true,
-                Size = 0,
-                LastModified = info.LastWriteTime
-            });
-        }
+            if (!Directory.Exists(path))
+                throw new DirectoryNotFoundException($"目录不存在: {path}");
 
-        // 获取文件
-        var files = Directory.GetFiles(path);
-        foreach (var file in files)
+            var entries = new List<LightFile>();
+
+            // 获取文件夹
+            var directories = Directory.GetDirectories(path);
+            foreach (var dir in directories)
+            {
+                var info = new DirectoryInfo(dir);
+                entries.Add(new LightFile
+                {
+                    Name = info.Name,
+                    Path = info.FullName,
+                    IsDirectory = true,
+                    Size = 0,
+                    LastModified = info.LastWriteTime
+                });
+            }
+
+            // 获取文件
+            var files = Directory.GetFiles(path);
+            foreach (var file in files)
+            {
+                var info = new FileInfo(file);
+                entries.Add(new LightFile
+                {
+                    Name = info.Name,
+                    Path = info.FullName,
+                    IsDirectory = false,
+                    Size = info.Length,
+                    LastModified = info.LastWriteTime
+                });
+            }
+
+            return await Task.FromResult(entries);
+        }
+        catch (Exception ex)
         {
-            var info = new FileInfo(file);
-            entries.Add(new LightFile
-            {
-                Name = info.Name,
-                Path = info.FullName,
-                IsDirectory = false,
-                Size = info.Length,
-                LastModified = info.LastWriteTime
-            });
-        }
+            // 这里可以加入日志记录，如 Console.WriteLine(ex) 或使用日志库
+            Console.WriteLine($"获取目录内容时发生错误: {ex.Message}");
 
-        return await Task.FromResult(entries);
+            // 根据需求返回空集合或重新抛出异常，这里返回空集合保证调用者安全处理
+            throw;
+        }
     }
+
 
     public async Task<List<EasyFolder>> GetChildFoldersAsync(string path)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("Path cannot be null or empty.", nameof(path));
-
-        if (!Directory.Exists(path))
-            throw new DirectoryNotFoundException($"The directory '{path}' does not exist.");
-
-        return await Task.Run(() =>
+        try
         {
-            var directories = Directory.GetDirectories(path);
-            var result = new List<EasyFolder>();
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentException("Path cannot be null or empty.", nameof(path));
 
-            foreach (var dir in directories)
+            if (!Directory.Exists(path))
+                throw new DirectoryNotFoundException($"The directory '{path}' does not exist.");
+
+            return await Task.Run(() =>
             {
-                var folder = new EasyFolder
-                {
-                    Name = Path.GetFileName(dir),
-                    Path = dir
-                };
-                result.Add(folder);
-            }
+                var directories = Directory.GetDirectories(path);
+                var result = new List<EasyFolder>();
 
-            return result;
-        });
+                foreach (var dir in directories)
+                {
+                    var folder = new EasyFolder
+                    {
+                        Name = Path.GetFileName(dir),
+                        Path = dir
+                    };
+                    result.Add(folder);
+                }
+
+                return result;
+            });
+        }
+        catch (Exception ex)
+        {
+            // 可以加入日志记录
+            Console.WriteLine($"获取子文件夹时发生错误: {ex.Message}");
+            // 重新抛出异常，保留堆栈信息
+            throw;
+        }
     }
+
 
 
     public async Task CreateDirectoryAsync(string path, string directoryName)
@@ -84,6 +107,7 @@ public class FileManagerService : IFileManagerService
         Directory.CreateDirectory(newDirPath);
         await Task.CompletedTask;
     }
+
 
     public async Task DeleteEntryAsync(string path)
     {

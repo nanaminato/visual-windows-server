@@ -48,11 +48,21 @@ public class FileSystemController : Controller
     {
         try
         {
-            return Ok(await fileManagerService.GetEntriesAsync(requestBody.Path));
+            var files = await fileManagerService.GetEntriesAsync(requestBody.Path);
+            return Ok(files);
         }
         catch (DirectoryNotFoundException e)
         {
             return NotFound(e.Message);
+        }
+        catch (UnauthorizedAccessException e)
+        {
+            return Forbid(e.Message); // 或者返回 StatusCode(403, e.Message);
+        }
+        catch (Exception e)
+        {
+            // 其他未预期错误
+            return StatusCode(500, $"服务器内部错误: {e.Message}");
         }
     }
 
@@ -68,9 +78,9 @@ public class FileSystemController : Controller
         {
             return NotFound(ex.Message);
         }
-        catch (IOException e)
+        catch (Exception e)
         {
-            return StatusCode(500, e.Message);
+            return BadRequest(e.Message);
         }
     }
 

@@ -6,6 +6,8 @@ using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using Visual_Window.Controllers.FileSystem.Services;
 using Visual_Window.Controllers.FileSystem.Services.impl;
+using Visual_Window.Controllers.FileSystem.SignalR;
+using Visual_Window.Controllers.FileSystem.SignalR.Services;
 using Visual_Window.Controllers.Terminal.Services;
 using Visual_Window.Models;
 
@@ -32,7 +34,7 @@ builder.Services.AddControllers().AddNewtonsoftJson(options =>
 });
 builder.Services.AddSignalR();
 builder.Services.AddSwaggerGen();
-
+builder.Services.AddSingleton<FileOperationService>();
 var jswSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 var secretKey = Encoding.UTF8.GetBytes(jswSettings!.SecretKey!);
 builder.Services.AddAuthentication(options =>
@@ -73,7 +75,7 @@ app.UseCors("CorsPolicy");
 if (!app.Environment.IsDevelopment())
 {
     
-    app.UseHsts();
+    // app.UseHsts();
 }
 else
 {
@@ -89,6 +91,7 @@ else
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
+app.MapHub<FileOperationsHub>("/fileOperationsHub");
 app.MapFallbackToFile("{*path:nonfile}", "index.html");
 app.MapControllers();
 app.Run();
