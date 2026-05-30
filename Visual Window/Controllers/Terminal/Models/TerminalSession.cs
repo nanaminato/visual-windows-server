@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using Pty.Net;
 
 namespace Visual_Window.Controllers.Terminal.Models;
@@ -143,7 +144,7 @@ public class TerminalSession
                             var segment = new ArraySegment<byte>(buffer, 0, read);
                             if (webSocket.State == WebSocketState.Open)
                             {
-                                await webSocket.SendAsync(segment, WebSocketMessageType.Text, true,
+                                await webSocket.SendAsync(segment, WebSocketMessageType.Binary, true,
                                     cancellationToken);
                             }
                             else
@@ -186,23 +187,57 @@ public class TerminalSession
             {
                 try
                 {
-                    var buffer = new byte[1024];
                     while (!cancellationToken.IsCancellationRequested)
                     {
-                        var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
+                        var receive = await ReceiveFullMessageAsync(webSocket, cancellationToken);
+                        var result = receive.Result;
+                        var data = receive.Data;
+
                         if (result.MessageType == WebSocketMessageType.Close)
                         {
                             await source.CancelAsync();
-                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
-                                CancellationToken.None);
+
+                            if (webSocket.State == WebSocketState.Open || webSocket.State == WebSocketState.CloseReceived)
+                            {
+                                await webSocket.CloseAsync(
+                                    WebSocketCloseStatus.NormalClosure,
+                                    "Client closed",
+                                    CancellationToken.None
+                                );
+                            }
+
                             Console.WriteLine("Client closed");
                             break;
                         }
 
                         if (result.MessageType == WebSocketMessageType.Text)
                         {
-                            await PtyConnection!.WriterStream.WriteAsync(buffer.AsMemory(0, result.Count),
-                                cancellationToken);
+                            var text = Encoding.UTF8.GetString(data);
+
+                            // 这里处理 resize 等控制消息
+                            var handled = await TryHandleControlMessageAsync(text);
+
+                            if (handled)
+                            {
+                                continue;
+                            }
+
+                            // 兼容旧客户端：非控制 Text 仍然作为终端输入
+                            await PtyConnection!.WriterStream.WriteAsync(
+                                Encoding.UTF8.GetBytes(text),
+                                cancellationToken
+                            );
+
+                            await PtyConnection.WriterStream.FlushAsync(cancellationToken);
+                        }
+                        else if (result.MessageType == WebSocketMessageType.Binary)
+                        {
+                            // Binary 才是真正的用户输入
+                            await PtyConnection!.WriterStream.WriteAsync(
+                                data.AsMemory(0, data.Length),
+                                cancellationToken
+                            );
+
                             await PtyConnection.WriterStream.FlushAsync(cancellationToken);
                         }
                     }
@@ -210,22 +245,22 @@ public class TerminalSession
                 catch (OperationCanceledException)
                 {
                     Console.WriteLine("Receive canceled");
-                    /* 正常取消 */
                 }
                 catch (WebSocketException)
                 {
                     Console.WriteLine("Receive canceled");
-                    /* 正常取消 */
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Receive exception: {ex}");
-                    // 这里可以考虑取消整个连接
                 }
+
                 await source.CancelAsync();
                 Console.WriteLine("Receive finished");
                 Console.WriteLine(webSocket.CloseStatusDescription);
+
             }, cancellationToken);
+
 
             await Task.WhenAll(sendTask, receiveTask);
             Console.WriteLine("all finished");
@@ -275,7 +310,7 @@ public class TerminalSession
                             var segment = new ArraySegment<byte>(buffer, 0, read);
                             if (webSocket.State == WebSocketState.Open)
                             {
-                                await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
+                                await webSocket.SendAsync(segment, WebSocketMessageType.Binary, true, cancellationToken);
                             }
                         }
                         else
@@ -306,43 +341,71 @@ public class TerminalSession
             {
                 try
                 {
-                    var buffer = new byte[1024];
                     while (!cancellationToken.IsCancellationRequested)
                     {
-                        var result = await webSocket.ReceiveAsync(buffer, cancellationToken);
+                        var receive = await ReceiveFullMessageAsync(webSocket, cancellationToken);
+                        var result = receive.Result;
+                        var data = receive.Data;
+
                         if (result.MessageType == WebSocketMessageType.Close)
                         {
                             await source.CancelAsync();
-                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
-                                CancellationToken.None);
+
+                            if (webSocket.State == WebSocketState.Open || webSocket.State == WebSocketState.CloseReceived)
+                            {
+                                await webSocket.CloseAsync(
+                                    WebSocketCloseStatus.NormalClosure,
+                                    "Client closed",
+                                    CancellationToken.None
+                                );
+                            }
+
                             Console.WriteLine("Client closed");
                             break;
                         }
 
                         if (result.MessageType == WebSocketMessageType.Text)
                         {
-                            var input = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                            await InputWriter.WriteAsync(input);
+                            var text = Encoding.UTF8.GetString(data);
+
+                            var handled = await TryHandleControlMessageAsync(text);
+
+                            if (handled)
+                            {
+                                continue;
+                            }
+
+                            await InputWriter.WriteAsync(text);
                             await InputWriter.FlushAsync(cancellationToken);
+                        }
+                        else if (result.MessageType == WebSocketMessageType.Binary)
+                        {
+                            await InputWriter.BaseStream.WriteAsync(
+                                data.AsMemory(0, data.Length),
+                                cancellationToken
+                            );
+
+                            await InputWriter.BaseStream.FlushAsync(cancellationToken);
                         }
                     }
                 }
                 catch (OperationCanceledException)
                 {
                     Console.WriteLine("Receive canceled");
-                    /* 正常取消 */
                 }
                 catch (WebSocketException)
                 {
                     Console.WriteLine("Receive canceled");
-                    /* 正常取消 */
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
                 }
+
                 await source.CancelAsync();
+
             }, cancellationToken);
+
             await Task.WhenAll(sendTask, receiveTask);
             Console.WriteLine("all finished");
         }
@@ -364,6 +427,102 @@ public class TerminalSession
         }
         
     }
-    
-    
+    private static async Task<(WebSocketReceiveResult Result, byte[] Data)> ReceiveFullMessageAsync(
+        WebSocket webSocket,
+        CancellationToken cancellationToken)
+    {
+        var buffer = new byte[8192];
+
+        using var ms = new MemoryStream();
+
+        WebSocketReceiveResult result;
+
+        do
+        {
+            result = await webSocket.ReceiveAsync(
+                new ArraySegment<byte>(buffer),
+                cancellationToken
+            );
+
+            if (result.MessageType == WebSocketMessageType.Close)
+            {
+                break;
+            }
+
+            if (result.Count > 0)
+            {
+                ms.Write(buffer, 0, result.Count);
+            }
+
+        } while (!result.EndOfMessage);
+
+        return (result, ms.ToArray());
+    }
+
+    private async Task<bool> TryHandleControlMessageAsync(string text)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(text);
+            var root = document.RootElement;
+
+            if (!root.TryGetProperty("type", out var typeElement))
+            {
+                return false;
+            }
+
+            var type = typeElement.GetString();
+
+            if (type == "resize")
+            {
+                if (!root.TryGetProperty("cols", out var colsElement))
+                {
+                    return true;
+                }
+
+                if (!root.TryGetProperty("rows", out var rowsElement))
+                {
+                    return true;
+                }
+
+                var cols = colsElement.GetInt32();
+                var rows = rowsElement.GetInt32();
+
+                await ResizeTerminalAsync(cols, rows);
+
+                return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task ResizeTerminalAsync(int cols, int rows)
+    {
+        if (cols <= 0 || rows <= 0)
+        {
+            return;
+        }
+
+        Console.WriteLine($"Terminal resize: cols={cols}, rows={rows}");
+
+        if (PtyConnection == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var pty = PtyConnection;
+            pty.Resize(cols, rows);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Resize terminal failed: {ex}");
+        }
+    }
 }

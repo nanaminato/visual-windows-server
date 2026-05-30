@@ -24,7 +24,7 @@ public class TerminalSessionManager
                 {
                     Name = name,
                     Cols = 80,
-                    Rows = 25,
+                    Rows = 24,
                     Cwd = terminalCreateOptions.Cwd ?? Environment.CurrentDirectory,
                     App = terminalCreateOptions.App ?? defaultApp,
                     ForceWinPty = true,
